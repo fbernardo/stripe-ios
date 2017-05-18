@@ -104,6 +104,7 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
     STPFormTextField *numberField = [self buildTextField];
     numberField.autoFormattingBehavior = STPFormTextFieldAutoFormattingBehaviorCardNumbers;
     numberField.tag = STPCardFieldTypeNumber;
+    numberField.textAlignment = NSTextAlignmentCenter;
     numberField.accessibilityLabel = NSLocalizedString(@"card number", @"accessibility label for text field");
     self.numberField = numberField;
     self.numberPlaceholder = [self.viewModel defaultPlaceholder];
@@ -112,6 +113,7 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
     expirationField.autoFormattingBehavior = STPFormTextFieldAutoFormattingBehaviorExpiration;
     expirationField.tag = STPCardFieldTypeExpiration;
     expirationField.alpha = 0;
+    expirationField.textAlignment = NSTextAlignmentCenter;
     expirationField.accessibilityLabel = NSLocalizedString(@"expiration date", @"accessibility label for text field");
     self.expirationField = expirationField;
     self.expirationPlaceholder = @"MM/YY";
@@ -119,6 +121,7 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
     STPFormTextField *cvcField = [self buildTextField];
     cvcField.tag = STPCardFieldTypeCVC;
     cvcField.alpha = 0;
+    cvcField.textAlignment = NSTextAlignmentRight;
     self.cvcField = cvcField;
     self.cvcPlaceholder = nil;
     self.cvcField.accessibilityLabel = [self defaultCVCPlaceholder];
@@ -480,15 +483,15 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
 }
 
 - (CGSize)intrinsicContentSize {
-    
-    CGSize imageSize = self.brandImage.size;
-    
     self.sizingField.text = self.viewModel.defaultPlaceholder;
     CGFloat textHeight = [self.sizingField measureTextSize].height;
-    CGFloat imageHeight = imageSize.height + (STPPaymentCardTextFieldDefaultPadding);
+    CGFloat imageHeight = 0;
     CGFloat height = stp_roundCGFloat((MAX(MAX(imageHeight, textHeight), 44)));
     
-    CGFloat width = stp_roundCGFloat([self widthForCardNumber:self.viewModel.defaultPlaceholder] + imageSize.width + (STPPaymentCardTextFieldDefaultPadding * 3));
+    CGFloat placeholderWidth = [self widthForCardNumber:self.numberField.placeholder];
+    CGFloat numberFieldWidth = placeholderWidth;
+    
+    CGFloat width = stp_roundCGFloat(numberFieldWidth);
     
     return CGSizeMake(width, height);
 }
@@ -503,30 +506,34 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
 }
 
 - (CGRect)numberFieldRectForBounds:(CGRect)bounds {
-    CGFloat placeholderWidth = [self widthForCardNumber:self.numberField.placeholder] - 4;
-    CGFloat numberWidth = [self widthForCardNumber:self.viewModel.defaultPlaceholder] - 4;
-    CGFloat numberFieldWidth = MAX(placeholderWidth, numberWidth);
-    CGFloat nonFragmentWidth = [self widthForCardNumber:[self.viewModel numberWithoutLastDigits]] - 12;
-    CGFloat numberFieldX = self.numberFieldShrunk ? STPPaymentCardTextFieldDefaultPadding - nonFragmentWidth : 8;
-    return CGRectMake(numberFieldX, 0, numberFieldWidth, CGRectGetHeight(bounds));
+    CGFloat placeholderWidth = [self widthForCardNumber:self.numberField.placeholder];
+//    CGFloat numberWidth = [self widthForCardNumber:self.viewModel.defaultPlaceholder];
+    CGFloat numberFieldWidth = placeholderWidth;
+    
+    CGFloat nonFragmentWidth = [self widthForCardNumber:[self.viewModel numberWithoutLastDigits]];
+    CGFloat numberFieldX = self.numberFieldShrunk ? -nonFragmentWidth : 0;
+    return CGRectMake(numberFieldX, 0, numberFieldWidth + (self.numberFieldShrunk ? STPPaymentCardTextFieldDefaultPadding : 0), CGRectGetHeight(bounds));
 }
 
 - (CGRect)cvcFieldRectForBounds:(CGRect)bounds {
-    CGRect fieldsRect = [self fieldsRectForBounds:bounds];
-
-    CGFloat cvcWidth = MAX([self widthForText:self.cvcField.placeholder], [self widthForText:@"8888"]);
-    CGFloat cvcX = self.numberFieldShrunk ?
-    CGRectGetWidth(fieldsRect) - cvcWidth - STPPaymentCardTextFieldDefaultPadding / 2  :
-    CGRectGetWidth(fieldsRect);
+    if (!self.numberFieldShrunk) {
+        return CGRectZero;
+    }
+    CGFloat cvcWidth = ceil([self widthForText:self.cvcField.placeholder]);
+    CGFloat cvcX = CGRectGetWidth(bounds) - cvcWidth;
     return CGRectMake(cvcX, 0, cvcWidth, CGRectGetHeight(bounds));
 }
 
 - (CGRect)expirationFieldRectForBounds:(CGRect)bounds {
-    CGRect numberFieldRect = [self numberFieldRectForBounds:bounds];
+    if (!self.numberFieldShrunk) {
+        return CGRectZero;
+    }
+    CGRect numberRect = [self numberFieldRectForBounds:bounds];
     CGRect cvcRect = [self cvcFieldRectForBounds:bounds];
-
-    CGFloat expirationWidth = MAX([self widthForText:self.expirationField.placeholder], [self widthForText:@"88/88"]);
-    CGFloat expirationX = (CGRectGetMaxX(numberFieldRect) + CGRectGetMinX(cvcRect) - expirationWidth) / 2;
+    
+    CGFloat distance = CGRectGetMinX(cvcRect) - CGRectGetMaxX(numberRect);
+    CGFloat expirationWidth = ceil([self widthForText:self.expirationField.placeholder]);
+    CGFloat expirationX = CGRectGetMaxX(numberRect) + stp_roundCGFloat((distance - expirationWidth) / 2);
     return CGRectMake(expirationX, 0, expirationWidth, CGRectGetHeight(bounds));
 }
 
@@ -615,13 +622,13 @@ typedef void (^STPNumberShrunkCompletionBlock)(BOOL completed);
 - (CGFloat)widthForText:(NSString *)text {
     self.sizingField.autoFormattingBehavior = STPFormTextFieldAutoFormattingBehaviorNone;
     [self.sizingField setText:text];
-    return [self.sizingField measureTextSize].width + 8;
+    return [self.sizingField measureTextSize].width;
 }
 
 - (CGFloat)widthForCardNumber:(NSString *)cardNumber {
     self.sizingField.autoFormattingBehavior = STPFormTextFieldAutoFormattingBehaviorCardNumbers;
     [self.sizingField setText:cardNumber];
-    return [self.sizingField measureTextSize].width + 20;
+    return [self.sizingField measureTextSize].width;
 }
 
 #pragma mark STPFormTextFieldDelegate

@@ -58,6 +58,12 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
 #define stp_roundCGFloat(x) roundf(x)
 #endif
 
+#if CGFLOAT_IS_DOUBLE
+#define stp_ceilCGFloat(x) ceil(x)
+#else
+#define stp_ceilCGFloat(x) ceilf(x)
+#endif
+
 #pragma mark initializers
 
 - (instancetype)initWithCoder:(NSCoder *)aDecoder {
@@ -519,7 +525,7 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
     if (!self.numberFieldShrunk) {
         return CGRectZero;
     }
-    CGFloat cvcWidth = ceil([self widthForText:self.cvcField.placeholder]);
+    CGFloat cvcWidth = stp_ceilCGFloat([self widthForText:self.cvcField.placeholder]);
     CGFloat cvcX = CGRectGetWidth(bounds) - cvcWidth;
     return CGRectMake(cvcX, 0, cvcWidth, CGRectGetHeight(bounds));
 }
@@ -532,7 +538,7 @@ CGFloat const STPPaymentCardTextFieldDefaultPadding = 13;
     CGRect cvcRect = [self cvcFieldRectForBounds:bounds];
     
     CGFloat distance = CGRectGetMinX(cvcRect) - CGRectGetMaxX(numberRect);
-    CGFloat expirationWidth = ceil([self widthForText:self.expirationField.placeholder]);
+    CGFloat expirationWidth = stp_ceilCGFloat([self widthForText:self.expirationField.placeholder]);
     CGFloat expirationX = CGRectGetMaxX(numberRect) + stp_roundCGFloat((distance - expirationWidth) / 2);
     return CGRectMake(expirationX, 0, expirationWidth, CGRectGetHeight(bounds));
 }
